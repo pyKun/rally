@@ -1,0 +1,37 @@
+{
+    "VMTasks.tom_and_jerry": [
+        {
+            "args": {
+                "tom": {
+                    "flavor": "3",
+                    "image": "60bad6bb-a119-4753-a294-0b5811dbed01",
+                    "floating_network": "public",
+                    "use_floating_ip": true,
+                    "force_delete": false,
+                    "username": "ubuntu",
+                    "deploy": "sudo apt-get install -y iperf &> /dev/null; which iperf",
+                },
+                "jerry": {
+                    "flavor": "3",
+                    "image": "60bad6bb-a119-4753-a294-0b5811dbed01",
+                    "floating_network": "public",
+                    "use_floating_ip": true,
+                    "username": "ubuntu",
+                    "deploy": "sudo apt-get install -y iperf &> /dev/null; which iperf",
+                },
+            },
+            "runner": {
+                "type": "serial",
+                "times": 1,
+            },
+            "context": {
+                "users": {
+                    "tenants": 1,
+                    "users_per_tenant": 1
+                },
+                "network": {
+                }
+            }
+        }
+    ]
+}

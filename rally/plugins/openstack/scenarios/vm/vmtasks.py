@@ -182,3 +182,73 @@ class VMTasks(nova_utils.NovaScenario, vm_utils.VMScenario,
                                          force_delete=force_delete)
 
         return {"data": data, "errors": err}
+
+    @base.scenario(context={"cleanup": ["nova", "cinder"],
+                            "keypair": {}, "allow_ssh": {}})
+    def tom_and_jerry(self, **kwargs):
+        """ Tom and Jerry are metaphor of:
+            foo does sth. on bar
+            vm-01 does sth. on vm-02
+            vm-01 run some scripts(test) on vm-02
+            ...
+        """
+        #TODO check parameters
+        tom_kwargs = kwargs["tom"]
+        jerry_kwargs = kwargs["jerry"]
+
+        #XXX provision two raw vm
+        tom, tom_ip = self._boot_server_with_fip(
+            tom_kwargs.pop("image"),
+            tom_kwargs.pop("flavor"),
+            use_floating_ip=tom_kwargs.pop("use_floating_ip"),
+            key_name=self.context["user"]["keypair"]["name"],
+            **tom_kwargs)
+
+        jerry, jerry_ip = self._boot_server_with_fip(
+            jerry_kwargs.pop("image"),
+            jerry_kwargs.pop("flavor"),
+            use_floating_ip=jerry_kwargs.pop("use_floating_ip"),
+            key_name=self.context["user"]["keypair"]["name"],
+            **jerry_kwargs)
+
+        #XXX deploy Tom (provision machine and install necessary tools)
+        print "deploying tom..."
+        command = {"remote_path":tom_kwargs["deploy"]}
+        code, out, err = self._run_command(
+            tom_ip["ip"], 22, tom_kwargs["username"], None, command=command)
+        if code != 0:
+            return {"data":{}, "error": "runing '%s' with output: %s" % (tom_kwargs["deploy"], out)}
+
+        print "generate pub keys"
+        command = {"remote_path":"ssh-keygen -f ~/.ssh/id_rsa -P '' &> /dev/null;cat ~/.ssh/id_rsa.pub"}
+        code, out, err = self._run_command(
+            tom_ip["ip"], 22, tom_kwargs["username"], None, command=command)
+        if code != 0:
+            return {"data":{}, "error": "runing '%s' with output: %s" % (tom_kwargs["deploy"], out)}
+        tom_pubkey = out
+
+        #XXX deploy Jerry
+        print "deploy Jerry..."
+        command = {"remote_path":jerry_kwargs["deploy"]}
+        code, out, err = self._run_command(
+            jerry_ip["ip"], 22, jerry_kwargs["username"], None, command=command)
+        if code != 0:
+            return {"data":{}, "error": "runing '%s' with output: %s" % (jerry_kwargs["deploy"], out)}
+
+        print "sending Tom's key to Jerry"
+        command = {"remote_path":"cat %s >> ~/.ssh/authorized_keys" % tom_pubkey}
+        code, out, err = self._run_command(
+            jerry_ip["ip"], 22, jerry_kwargs["username"], None, command=command)
+        if code != 0:
+            return {"data":{}, "error": "runing '%s' with output: %s" % (jerry_kwargs["deploy"], out)}
+
+        #TODO Tom->Jerry (ssh into Tom and run sth with connection with Jerry)
+        print "do sth. from Tom to Jerry"
+        #TODO need verified key here
+        command = {"remote_path":"ssh %s@%s hostname" % (jerry_kwargs["username"], jerry_ip["ip"])}
+        code, out, err = self._run_command(
+            tom_ip["ip"], 22, tom_kwargs["username"], None, command=command)
+        if code != 0:
+            return {"data":{}, "error": "runing '%s' with output: %s" % (tom_kwargs["deploy"], out)}
+
+        return {"data":{"fake_ret":100}, "errors":''}
